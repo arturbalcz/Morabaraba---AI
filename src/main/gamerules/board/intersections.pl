@@ -1,38 +1,4 @@
-:- module(intersections, [intersection/3]).
-
-intersection(a7).
-intersection(d7). 
-intersection(g7).
-
-intersection(b6).
-intersection(d6).
-intersection(f6).
-
-intersection(c5).
-intersection(d5).
-intersection(e5).
-
-intersection(a4).
-intersection(b4).
-intersection(c4).
-
-intersection(e4).
-intersection(f4).
-intersection(g4).
-
-intersection(c3).   
-intersection(d3).
-intersection(e3).
-
-intersection(b2).
-intersection(d2).
-intersection(f2).
-
-intersection(a1).
-intersection(d1).
-intersection(g1).
-
-
+:- module(intersections, [intersection/3, intersection/2, intersection/1]).
 
 intersection(a7, 1, 7).
 intersection(d7, 4, 7). 
@@ -65,3 +31,6 @@ intersection(f2, 6, 2).
 intersection(a1, 1, 1).
 intersection(d1, 4, 1).
 intersection(g1, 7, 1).
+
+intersection(Label) :- intersection(Label, _, _).
+intersection(X, Y) :- intersection(_, X, Y).

@@ -1,4 +1,4 @@
-:- use_module(lines).
+:- use_module(main/gamerules/board/lines).
 
 horizontal_positive_test() :-
     line(1,1,4,1),
@@ -39,3 +39,11 @@ diagonal_negative_test() :-
     not(line(5,3,7,1)),
     not(line(3,5,5,3)),
     not(line(3,3,5,5)).
+
+test() :- 
+    horizontal_positive_test(), 
+    horizontal_negative_test(),
+    vertical_positive_test(), 
+    vertical_negative_test(),
+    diagonal_positive_test(), 
+    diagonal_negative_test(). 
