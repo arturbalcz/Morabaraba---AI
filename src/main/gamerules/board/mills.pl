@@ -20,6 +20,10 @@ connection(X1,Y1,X2,Y2,X3,Y3) :-
 
 edge(X1,Y1,X2,Y2,X3,Y3) :- 
     connection(X1,Y1,X2,Y2,X3,Y3); 
+    connection(X1,Y1,X3,Y3,X2,Y2);
+    connection(X2,Y2,X1,Y1,X3,Y3);
+    connection(X2,Y2,X3,Y3,X1,Y1);
+    connection(X3,Y3,X1,Y1,X2,Y2);
     connection(X3,Y3,X2,Y2,X1,Y1), !. 
 
 mill(X1,Y1,X2,Y2,X3,Y3) :- 
