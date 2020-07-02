@@ -44,16 +44,29 @@ wait_for_game_start(WebSocket, Reply, FinalReply) :-
 is_your_turn_player_color(true, white).
 is_your_turn_player_color(false, black).
 
+receive_game_data(WebSocket, Reply) :-
+		ws_receive(WebSocket, Reply, [ format(json) ]),
+		writeln(Reply),
+		( Reply.data.type == "si#pm" ->
+			true
+			;
+			Reply.data.type == "rfx#ulr" ->
+			ws_receive(WebSocket, ResultReply, [ format(json) ]),
+			writeln(ResultReply),
+			finish_game(WebSocket, ResultReply)
+			;
+			Reply.data.type == "si#ge" ->
+			finish_game(WebSocket, Reply)
+		).
+
 send_move(WebSocket, Move) :- 
 	atom_concat('{"target":"zone","type":"si#pm","move":"', Move, TempMessage),
 	atom_concat(TempMessage, '"}', Message),
 	ws_send(WebSocket, text(Message)),
-	ws_receive(WebSocket, Reply, [ format(json) ]),
-	writeln(Reply).
+	receive_game_data(WebSocket, _).
 	
 receive_move(WebSocket, Move) :- 
-	ws_receive(WebSocket, Reply, [ format(json) ]),
-	writeln(Reply),
+	receive_game_data(WebSocket, Reply),
 	Move = Reply.data.move.
 
 play_game(WebSocket, black) :- 
@@ -87,6 +100,17 @@ opponents_move(WebSocket, State) :-
 	writeln(NextState),
 	make_move(WebSocket, NextState).
 
+finish_game(WebSocket, Result) :-
+	( Result.data.didYouWin == true ->
+		writeln("Game result: win")
+		;
+		writeln("Game result: lose")
+	),
+	ws_receive(WebSocket, Reply1, [ format(json) ]),
+	writeln(Reply1),
+	ws_close(WebSocket, 1000, "game_finished"), !,
+	start_game().
+
 start_game() :- 
 	URL = "ws://127.0.0.1:81/ws",
 	open_websocket(URL, WebSocket),
@@ -97,4 +121,3 @@ start_game() :-
 	write("playing as: "),
 	writeln(PlayerColor),
 	play_game(WebSocket, PlayerColor).
-
