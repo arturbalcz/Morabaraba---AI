@@ -27,6 +27,11 @@ init_game(WebSocket) :-
 	ws_receive(WebSocket, Reply, [ format(json) ]),
 	writeln(Reply.data).
 
+wait_for_opponent(WebSocket, PlayerColor) :-
+	ws_receive(WebSocket, Reply1, [ format(json) ]),
+	wait_for_game_start(WebSocket, Reply1, Reply),
+	is_your_turn_player_color(Reply.data.isYourTurn, PlayerColor).
+
 wait_for_game_start(WebSocket, Reply, FinalReply) :-
 	writeln(Reply), 
 	( Reply.data.type == "si#gb" -> 
@@ -88,9 +93,7 @@ start_game() :-
 	connect_to_server(WebSocket),
 	join_lobby(WebSocket),
 	init_game(WebSocket),
-	ws_receive(WebSocket, Reply1, [ format(json) ]),
-	wait_for_game_start(WebSocket, Reply1, Reply),
-	is_your_turn_player_color(Reply.data.isYourTurn, PlayerColor),
+	wait_for_opponent(WebSocket, PlayerColor),
 	write("playing as: "),
 	writeln(PlayerColor),
 	play_game(WebSocket, PlayerColor).

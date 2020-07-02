@@ -31,4 +31,3 @@ set_elm([_|Rest],1,V,[V|Rest]):-!.
 set_elm([Field|Rest0],N,V,[Field|Rest1]):-
 	M is N - 1,
 	set_elm(Rest0,M,V,Rest1).
-

@@ -16,7 +16,6 @@ arg0(N,T,Arg):-
 	when((ground(N);ground(M)),succ(N,M)),
 	arg(M,T,Arg).
 
-
 :- setters(board/24).
 
 empty_board(board(

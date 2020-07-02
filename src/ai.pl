@@ -5,28 +5,28 @@
 :- use_module(configuration).
 :- use_module(evaluation).
 
-cfg_player(Cfg,Player):-
-	player(Cfg,Player).
+state_player(State,Player):-
+	player(State,Player).
 legal_move(From,Move,To):-
   move(From,Move,To).
 
-:- dynamic cfg_value_cache/4.
+:- dynamic state_value_cache/4.
 
-cfg_value_calculate(Cfg,Player,Value):-
-	(   victorious(Cfg,Player)
+state_value_calculate(State,Player,Value):-
+	(   victorious(State,Player)
 	->  Value=9999999
-	;   defeated(Cfg,Player)
+	;   defeated(State,Player)
 	->  Value=(-9999999)
-	;   evaluate(Cfg,Player,Value)
+	;   evaluate(State,Player,Value)
 	).
 
-cfg_value(Cfg,Player,Value):-
-	term_hash(Cfg,Hash),
-        (   cfg_value_cache(Hash,Cfg,Player,Value),
+state_value(State,Player,Value):-
+	term_hash(State,Hash),
+        (   state_value_cache(Hash,State,Player,Value),
 	    !
-	;   cfg_value_calculate(Cfg,Player,Value),
+	;   state_value_calculate(State,Player,Value),
 	    !,
-	    assert(cfg_value_cache(Hash,Cfg,Player,Value))
+	    assert(state_value_cache(Hash,State,Player,Value))
 	).
 
 :- record cx(player=white,horizon=5,depth=0,alpha=(-9999999),beta=9999999).
@@ -40,38 +40,38 @@ down(Cx0,Cx):-
 	D is D0 + 1,
 	set_depth_of_cx(D,Cx0,Cx).
 
-find_move(Cfg,Horizon,Move,Value):-
-	cfg_player(Cfg,Player),
+find_move(State,Horizon,Move,Value):-
+	state_player(State,Player),
 	make_cx([horizon(Horizon),player(Player)],Cx),
-	value(Cfg,Cx,Move-Value).
+	value(State,Cx,Move-Value).
 
-value(Cfg,Cx,Move-Value):-
+value(State,Cx,Move-Value):-
   cx_player(Cx,Player),
   ( passed_horizon(Cx)
-  ->cfg_value(Cfg,Player,Value),
+  ->state_value(State,Player,Value),
     Move=horizon
-  ; game_over(Cfg)
-  ->cfg_value(Cfg,Player,Value),
+  ; game_over(State)
+  ->state_value(State,Player,Value),
     Move=game_over
-  ; value_recursive(Cfg,Cx,Move-Value)
+  ; value_recursive(State,Cx,Move-Value)
   ).
 
 passed_horizon(Cx):-
 	cx_horizon(Cx,H),
 	cx_depth(Cx,D),
 	D>H.
-game_over(Cfg):-
-	\+ legal_move(Cfg,_,_).
+game_over(State):-
+	\+ legal_move(State,_,_).
 
-value_recursive(Cfg0,Cx0,Move-Value):-
+value_recursive(State0,Cx0,Move-Value):-
   cx_player(Cx0,Player),
-  findall(H-(Z-Cfg),(legal_move(Cfg0,Z,Cfg),cfg_value(Cfg,Player,H)),Cfgs),
-  keysort(Cfgs,SortedCfgs),
-  reverse(SortedCfgs,ReverseSortedCfgs),
+  findall(H-(Z-State),(legal_move(State0,Z,State),state_value(State,Player,H)),States),
+  keysort(States,SortedStates),
+  reverse(SortedStates,ReverseSortedStates),
   down(Cx0,Cx),
   ( me(Cx0)
-  ->maximize(ReverseSortedCfgs,Cx,(nix-(-9999999)),Move-Value)
-  ; minimize(ReverseSortedCfgs,Cx,(nix-9999999),Move-Value)
+  ->maximize(ReverseSortedStates,Cx,(nix-(-9999999)),Move-Value)
+  ; minimize(ReverseSortedStates,Cx,(nix-9999999),Move-Value)
   ).
 
 beta_cut(Cx,Move-Value,Cx,Move-Value):-
@@ -91,13 +91,13 @@ worsening(Cx0,ValueMin,Move-Value,Cx,Move-Value):-
 	set_beta_of_cx(Value,Cx0,Cx).
 
 maximize([],_,Move-Value,Move-Value).
-maximize([_-(MoveK-Cfg)|Cfgs],Cx0,Move0-Value0,Move-Value):-
-  value(Cfg,Cx0,_-ValueK),
+maximize([_-(MoveK-State)|States],Cx0,Move0-Value0,Move-Value):-
+  value(State,Cx0,_-ValueK),
   ( beta_cut(Cx0,MoveK-ValueK,Cx,Move1-Value1)
   ->Rest=[]
   ; improvement(Cx0,Value0,MoveK-ValueK,Cx,Move1-Value1)
-  ->Rest=Cfgs
-  ; Rest=Cfgs,
+  ->Rest=States
+  ; Rest=States,
     Value1 = Value0,
     Move1 = Move0,
     Cx=Cx0
@@ -105,13 +105,13 @@ maximize([_-(MoveK-Cfg)|Cfgs],Cx0,Move0-Value0,Move-Value):-
   maximize(Rest,Cx,Move1-Value1,Move-Value).
 
 minimize([],_,Move-Value,Move-Value).
-minimize([_-(MoveK-Cfg)|Cfgs],Cx0,Move0-Value0,Move-Value):-
-  value(Cfg,Cx0,_-ValueK),
+minimize([_-(MoveK-State)|States],Cx0,Move0-Value0,Move-Value):-
+  value(State,Cx0,_-ValueK),
   ( alpha_cut(Cx0,MoveK-ValueK,Cx,Move1-Value1)
   ->Rest=[]
   ; worsening(Cx0,Value0,MoveK-ValueK,Cx,Move1-Value1)
-  ->Rest=Cfgs
-  ; Rest=Cfgs,
+  ->Rest=States
+  ; Rest=States,
     Value1 = Value0,
     Move1=Move0,
     Cx=Cx0

@@ -9,9 +9,7 @@
 	      place_piece/4,
 	      swap_fields/4,
 	      next_player/2,
-	      status/4,
-	      json_conf/2,
-	      conf_code/2
+	      status/4
 	  ]).
 
 :- use_module(bake).
@@ -62,150 +60,60 @@
 	      black:player_status=player_status(12,0)
 	  ).
 
-%%	-----------------------------------------------
-record_arg_name_type_(R,A,N,T):-
-	current_record(R,Desc),
-	arg(A,Desc,DescArg),
-	desc_arg_name_type(DescArg,N,T).
+start(State):-
+	default_configuration(State).
+
+player(State,Player):-
+	configuration_player(State,Player).
+board(State,Board):-
+	configuration_board(State,Board).
 
 
-
-desc_arg_name_type(N:T=_,N,T):-!.
-desc_arg_name_type(N:T,N,T):-!.
-desc_arg_name_type(N=_,N,any):-!.
-desc_arg_name_type(N,N,any).
-
-:- bake(record_arg_name_type(R,A,N,T),record_arg_name_type_(R,A,N,T)).
-:- bake(record_constructor_name(R,CN),(current_record(R,_),atom_concat('make_',R,CN))).
-
-json_conf(Json,Cfg):-
-	(   ground(Json)
-	->  json_to_record(configuration,Json,Cfg)
-	;   record_to_json(Cfg,Json)
-	).
-
-construct(Type,Options,Record):-
-	record_constructor_name(Type,CN),
-	call(CN,Options,Record).
-
-json_to_record(Type,json(Props),Record):-
-	props_options(Props,Type,Options),
-	construct(Type,Options,Record).
-
-record_to_json(Record,json(Props)):-
-	functor(Record,Type,_),
-	findall(Prop,
-		(   record_arg_name_type(Type,Arg,Name,ValueType),
-		    arg(Arg,Record,ArgValue),
-		    record_arg_json(ValueType,ArgValue,Value),
-		    Prop=(Name=Value)
-		), Props).
-record_arg_json(ValueType,Value,Json):-
-	(   current_record(ValueType,_)
-	->  record_to_json(Value,Json)
-	;   Json=Value
-	).
-
-
-props_options([],_RecordType,[]).
-props_options([Name=Value|MoreProps],RecordType,[Option|MoreOptions]):-
-	record_arg_name_type(RecordType,_,Name,ValueType),
-	prop_option(ValueType,Name,Value,Option),
-	props_options(MoreProps,RecordType,MoreOptions).
-
-prop_option(Type,Name,Value,Option):-
-	(   current_record(Type,_)
-	->  json_to_record(Type,Value,RecordValue),
-	    Option =..[Name,RecordValue]
-	;   Option =..[Name,Value]
-	).
-
-
-%%	--------------------------------
-
-conf_code(Cfg,StatsCode/BoardCode/PlayerCode):-
-	player(Cfg,Player),
-	board(Cfg,Board),
-	configuration_white(Cfg,StatusWhite),
-	configuration_black(Cfg,StatusBlack),
-	stats_code(StatusWhite,StatusBlack,StatsCode),
-	board(Cfg,Board),
-	board_code(Board,BoardCode),
-	player_code(Player,PlayerCode).
-
-player_code(white,1).
-player_code(black,2).
-
-stats_code(player_status(A,B),player_status(C,D),Code):-
-	(   var(Code)
-	->  Code is 1000*A+100*B+10*C+D
-	;   D is Code mod 10,
-	    C is Code div 10 mod 10,
-	    B is Code div 100 mod 10,
-	    A is Code div 1000 mod 10
-	).
-
-%%	--------------------------------
-
-
-
-start(Cfg):-
-	default_configuration(Cfg).
-
-player(Cfg,Player):-
-	configuration_player(Cfg,Player).
-board(Cfg,Board):-
-	configuration_board(Cfg,Board).
-
-
-empty(Cfg,Field):-
-	board(Cfg,Board),
+empty(State,Field):-
+	board(State,Board),
         board_field_piece(Board,Field,empty).
 
-occupied(Cfg,Field,Player):-
-	board(Cfg,Board),
+occupied(State,Field,Player):-
+	board(State,Board),
 	board_field_piece(Board,Field,Player),
 	Player \= empty.
 
 oponent(black,white).
 oponent(white,black).
 
-remove_piece(Cfg0,Field,Player,Cfg1):-
-	status(Cfg0,Player,Unused,Lost0),
-	board(Cfg0,Board0),
-	occupied(Cfg0,Field,Player),
+remove_piece(State0,Field,Player,State1):-
+	status(State0,Player,Unused,Lost0),
+	board(State0,Board0),
+	occupied(State0,Field,Player),
 	board_set(Field,Board0,empty,Board1),
 	succ(Lost0,Lost1),
 	make_player_status([unused(Unused),lost(Lost1)],Status),
 	StatusOption =.. [Player,Status],
-	set_configuration_fields([board(Board1),StatusOption],Cfg0,Cfg1).
+	set_configuration_fields([board(Board1),StatusOption],State0,State1).
 
-place_piece(Cfg0,Player,Field,Cfg1):-
-	empty(Cfg0,Field),
-	board(Cfg0,Board0),
-	status(Cfg0,Player,Unused0,Lost),
+place_piece(State0,Player,Field,State1):-
+	empty(State0,Field),
+	board(State0,Board0),
+	status(State0,Player,Unused0,Lost),
 	succ(Unused1,Unused0),
 	make_player_status([unused(Unused1),lost(Lost)],Status),
 	StatusOption =.. [Player,Status],
 	board_set(Field,Board0,Player,Board1),
-	set_configuration_fields([board(Board1),StatusOption],Cfg0,Cfg1).
+	set_configuration_fields([board(Board1),StatusOption],State0,State1).
 
-swap_fields(Cfg0,A,B,Cfg1):-
-	board(Cfg0,Board0),
+swap_fields(State0,A,B,State1):-
+	board(State0,Board0),
 	board_field_piece(Board0,A,PieceA),
 	board_field_piece(Board0,B,PieceB),
 	board_set([A=PieceB,B=PieceA],Board0,Board1),
-	set_board_of_configuration(Board1,Cfg0,Cfg1).
+	set_board_of_configuration(Board1,State0,State1).
 
-next_player(Cfg0,Cfg1):-
-	player(Cfg0,A),
+next_player(State0,State1):-
+	player(State0,A),
 	oponent(A,B),
-	set_player_of_configuration(B,Cfg0,Cfg1).
+	set_player_of_configuration(B,State0,State1).
 
-status(Cfg,Player,Unused,Lost):-
+status(State,Player,Unused,Lost):-
         player_status_unused(Status,Unused),
         player_status_lost(Status,Lost),
-	configuration_data(Player,Cfg,Status).
-
-
-
+	configuration_data(Player,State,Status).
