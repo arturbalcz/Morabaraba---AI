@@ -29,7 +29,7 @@ state_value(State,Player,Value):-
 	    assert(state_value_cache(Hash,State,Player,Value))
 	).
 
-:- record cx(player=white,horizon=5,depth=0,alpha=(-9999999),beta=9999999).
+:- record cx(player=white,max_depth=5,depth=0,alpha=(-9999999),beta=9999999).
 
 me(Cx):-
 	cx_depth(Cx,D),
@@ -40,24 +40,24 @@ down(Cx0,Cx):-
 	D is D0 + 1,
 	set_depth_of_cx(D,Cx0,Cx).
 
-find_move(State,Horizon,Move,Value):-
+find_move(State,MaxDepth,Move,Value):-
 	state_player(State,Player),
-	make_cx([horizon(Horizon),player(Player)],Cx),
+	make_cx([max_depth(MaxDepth),player(Player)],Cx),
 	value(State,Cx,Move-Value).
 
 value(State,Cx,Move-Value):-
   cx_player(Cx,Player),
-  ( passed_horizon(Cx)
+  ( passed_max_depth(Cx)
   ->state_value(State,Player,Value),
-    Move=horizon
+    Move=max_depth
   ; game_over(State)
   ->state_value(State,Player,Value),
     Move=game_over
   ; value_recursive(State,Cx,Move-Value)
   ).
 
-passed_horizon(Cx):-
-	cx_horizon(Cx,H),
+passed_max_depth(Cx):-
+	cx_max_depth(Cx,H),
 	cx_depth(Cx,D),
 	D>H.
 game_over(State):-
