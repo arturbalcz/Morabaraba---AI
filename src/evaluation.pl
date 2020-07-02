@@ -1,5 +1,5 @@
-:- module(heuristic,[
-    heuristic/3
+:- module(evaluation,[
+    evaluate/3
   ]).
 :- use_module(configuration).
 :- use_module(board).
@@ -20,7 +20,7 @@ freedom(Cfg,Player,Field):-
 freedoms(Cfg,Player,Count):-
 	aggregate_all(count,freedom(Cfg,Player,_Field),Count).
 
-heuristic(Cfg,Me,G):-
+evaluate(Cfg,Me,G):-
 	oponent(Me,Them),
 	pieces_left(Cfg,Me,MyPieces),
 	pieces_left(Cfg,Them,TheirPieces),

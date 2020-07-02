@@ -3,7 +3,7 @@
 :- use_module(library(record)).
 :- use_module(rules).
 :- use_module(configuration).
-:- use_module(heuristic).
+:- use_module(evaluation).
 
 cfg_player(Cfg,Player):-
 	player(Cfg,Player).
@@ -17,7 +17,7 @@ cfg_value_calculate(Cfg,Player,Value):-
 	->  Value=9999999
 	;   defeated(Cfg,Player)
 	->  Value=(-9999999)
-	;   heuristic(Cfg,Player,Value)
+	;   evaluate(Cfg,Player,Value)
 	).
 
 cfg_value(Cfg,Player,Value):-

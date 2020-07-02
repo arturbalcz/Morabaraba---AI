@@ -39,23 +39,6 @@ wait_for_game_start(WebSocket, Reply, FinalReply) :-
 is_your_turn_player_color(true, white).
 is_your_turn_player_color(false, black).
 
-play_game(WebSocket, black) :- 
-	start(State0),
-	receive_move(WebSocket, OpponentMove),
-	writeln(OpponentMove),
-	parse_move(OpponentMove, FromLabel, ToLabel, RemoveLabel),
-	field_label(To, ToLabel),
-	field_label(Remove, RemoveLabel),
-	field_label(From, FromLabel),
-	writeln(State0),
-	move(State0, move(From, To, Remove), NextState),
-	writeln(NextState),
-	make_turn(WebSocket, NextState).
-
-play_game(WebSocket, white) :- 
-	start(State0),
-	make_turn(WebSocket, State0).
-
 send_move(WebSocket, Move) :- 
 	atom_concat('{"target":"zone","type":"si#pm","move":"', Move, TempMessage),
 	atom_concat(TempMessage, '"}', Message),
@@ -68,29 +51,36 @@ receive_move(WebSocket, Move) :-
 	writeln(Reply),
 	Move = Reply.data.move.
 
-make_turn(WebSocket, State) :- 
+play_game(WebSocket, black) :- 
+	start(State0),
+	opponents_move(WebSocket, State0).
+
+play_game(WebSocket, white) :- 
+	start(State0),
+	make_move(WebSocket, State0).
+
+make_move(WebSocket, State) :- 
 	find_move(State,4,move(From, To, Remove),Value),
-	field_label(From, FromLabel),
-	field_label(To, ToLabel),
-	field_label(Remove, RemoveLabel),	
-	write_move(FromLabel, ToLabel, RemoveLabel, Move),
+	coordinates_notation(From, To, Remove, Move),
+	write("best move: "),
 	writeln(Move),
+	write("value: "),
 	writeln(Value),
 	writeln(State),
-	move(State, move(From, To, Remove), SecondState),
-	writeln(SecondState),
-	send_move(WebSocket, Move),
-	receive_move(WebSocket, OpponentMove),
-	writeln(OpponentMove),
-	parse_move(OpponentMove, SecondFromLabel, SecondToLabel, SecondRemoveLabel),
-	field_label(SecondTo, SecondToLabel),
-	field_label(SeocondRemove, SecondRemoveLabel),
-	field_label(SecondFrom, SecondFromLabel),
-	writeln(SecondState),
-	move(SecondState, move(SecondFrom, SecondTo, SeocondRemove), NextState),
+	move(State, move(From, To, Remove), NextState),
 	writeln(NextState),
-	make_turn(WebSocket, NextState).
-
+	send_move(WebSocket, Move),
+	opponents_move(WebSocket, NextState).
+	
+opponents_move(WebSocket, State) :- 
+	receive_move(WebSocket, OpponentMove),
+	write("opponent move: "),
+	writeln(OpponentMove),
+	notation_coordinates(OpponentMove, From, To, Remove),
+	writeln(State),
+	move(State, move(From, To, Remove), NextState),
+	writeln(NextState),
+	make_move(WebSocket, NextState).
 
 start_game() :- 
 	URL = "ws://127.0.0.1:81/ws",
@@ -101,6 +91,7 @@ start_game() :-
 	ws_receive(WebSocket, Reply1, [ format(json) ]),
 	wait_for_game_start(WebSocket, Reply1, Reply),
 	is_your_turn_player_color(Reply.data.isYourTurn, PlayerColor),
+	write("playing as: "),
 	writeln(PlayerColor),
 	play_game(WebSocket, PlayerColor).
 

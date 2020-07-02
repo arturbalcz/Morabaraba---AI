@@ -7,7 +7,6 @@
   mill/3,
   in_mill/2,
   board_field_piece/3,
-  write_board/1,
   board_code/2
 ]).
 :- use_module(setters).
@@ -171,50 +170,3 @@ in_mill(Board,Field):-
         Player \= empty,
 	arg(B,Board,Player),
 	arg(C,Board,Player).
-
-
-player_symbol(white,'(W)').
-player_symbol(black,'(B)').
-player_symbol(empty,'   ').
-
-format_piece(_,Player):-
-	player_symbol(Player,Symbol),
-	write(Symbol).
-
-:- format_predicate('F',format_figur(_,_)).
-
-map_args([],_,[]).
-map_args([A|More],In,[V|Out]):-
-	arg(A,In,V),
-	map_args(More,In,Out).
-
-
-write_board(Board):-
-	map_args([
-	    1, 2, 3,
-	    9, 10, 11,
-	    17,18,19,
-	    8,16,24,20,12,4,
-	    23,22,21,
-	    15,14,13,
-	    7,6,5
-	],Board,Pieces),
-	FormatLines =[
-	    '~F---------~F---------~F',
-	    ' |           |           | ',
-	    ' |  ~F-----~F-----~F	 | ',
-	    ' |   |       |	     |   | ',
-	    ' |   |	~F-~F-~F  |   | ',
-	    ' |   |	 |       |   |   | ',
-	    '~F-~F-~F     ~F-~F-~F',
-	    ' |   |	 |       |   |   | ',
-	    ' |   |  ~F-~F-~F  |   | ',
-	    ' |   |       |       |   | ',
-	    ' |  ~F-----~F-----~F	 | ',
-	    ' |           |           | ',
-	    '~F---------~F---------~F~n'
-	],
-	atomic_list_concat(FormatLines,'~n',Format),
-	format(Format,Pieces).
-
-

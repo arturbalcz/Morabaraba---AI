@@ -1,4 +1,18 @@
-:- module(notation, [parse_move/4, write_move/4]).
+:- module(notation, [notation_coordinates/4, coordinates_notation/4]).
+
+:- use_module(field_label).
+
+notation_coordinates(Notation, From, To, Remove) :-
+    parse_move(Notation, FromLabel, ToLabel, RemoveLabel),
+    field_label(To, ToLabel),
+	field_label(Remove, RemoveLabel),
+	field_label(From, FromLabel).
+
+coordinates_notation(From, To, Remove, Notation) :-
+    field_label(To, ToLabel),
+	field_label(Remove, RemoveLabel),
+	field_label(From, FromLabel),
+    write_move(FromLabel, ToLabel, RemoveLabel, Notation).
 
 parse_move(Notation, From, To, Remove) :-
     split_string(Notation, "-", "", FromTo),
