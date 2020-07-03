@@ -111,8 +111,7 @@ finish_game(WebSocket, Result) :-
 	ws_close(WebSocket, 1000, "game_finished"), !,
 	start_game().
 
-start_game() :- 
-	URL = "ws://127.0.0.1:81/ws",
+start_game(URL) :- 
 	open_websocket(URL, WebSocket),
 	connect_to_server(WebSocket),
 	join_lobby(WebSocket),
@@ -121,3 +120,13 @@ start_game() :-
 	write("playing as: "),
 	writeln(PlayerColor),
 	play_game(WebSocket, PlayerColor).
+
+start_game() :-
+	start_game("ws://127.0.0.1:81/ws").
+
+loop(URL) :-
+	start_game(URL),
+	loop(URL).
+
+loop() :-
+	loop("ws://127.0.0.1:81/ws").
