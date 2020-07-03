@@ -1,3 +1,5 @@
+:- module(webclient, [start_game/0, start_game/1, play_in_loop/0, play_in_loop/1]).
+
 :- use_module(library(http/websocket)).
 :- use_module(library(http/thread_httpd)).
 :- use_module(library(http/http_dispatch)).
@@ -100,6 +102,8 @@ game_loop(WebSocket, CurrentContext) :-
 	!.
 
 start_game(URL) :- 
+	write("Server URL: "),
+	writeln(URL),
 	open_websocket(URL, WebSocket),
 	ws_send(WebSocket, text('{"target": "global", "type": "rfx#jz", "zoneName": "morabaraba"}')),
 	CurrentContext = context{ myId: -1, myColor: none, boardState: none, isGameEnd: false },
@@ -108,9 +112,9 @@ start_game(URL) :-
 start_game() :-
 	start_game("ws://127.0.0.1:81/ws").
 
-loop(URL) :-
+play_in_loop(URL) :-
 	start_game(URL),
-	loop(URL).
+	play_in_loop(URL).
 
-loop() :-
-	loop("ws://127.0.0.1:81/ws").
+play_in_loop() :-
+	play_in_loop("ws://127.0.0.1:81/ws").
