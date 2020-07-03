@@ -9,75 +9,60 @@
 :- use_module(configuration).
 :- use_module(field_label).
 
-open_websocket(URL, WebSocket) :- 
-	http_open_websocket(URL, WebSocket, []).
-
-connect_to_server(WebSocket) :- 
-	ws_send(WebSocket, text('{"target": "global", "type": "rfx#jz", "zoneName": "morabaraba"}')),
+handle_server_message(WebSocket, CurrentContext, NewContext) :-
 	ws_receive(WebSocket, Reply, [ format(json) ]),
-	writeln(Reply.data).
-
-join_lobby(WebSocket) :- 
-	ws_send(WebSocket, text('{"roomName":"lobby", "target":"zone", "type":"rfx#jr"}')),
-	ws_receive(WebSocket, Reply, [ format(json) ]),
-	writeln(Reply.data).
-
-init_game(WebSocket) :- 
-	ws_send(WebSocket, text('{"target":"zone","type":"si#gs"}')),
-	ws_receive(WebSocket, Reply, [ format(json) ]),
-	writeln(Reply.data).
-
-wait_for_opponent(WebSocket, PlayerColor) :-
-	ws_receive(WebSocket, Reply1, [ format(json) ]),
-	wait_for_game_start(WebSocket, Reply1, Reply),
-	is_your_turn_player_color(Reply.data.isYourTurn, PlayerColor).
-
-wait_for_game_start(WebSocket, Reply, FinalReply) :-
-	writeln(Reply), 
-	( Reply.data.type == "si#gb" -> 
-		FinalReply = Reply
-	;
-		ws_receive(WebSocket, Reply1, [ format(json) ]),
-		wait_for_game_start(WebSocket, Reply1, FinalReply)
+	writeln(Reply),
+	( 
+		Reply.data.type == "rfx#jz" ->
+			ws_send(WebSocket, text('{"roomName":"lobby", "target":"zone", "type":"rfx#jr"}'))
+		;
+		Reply.data.type == "rfx#jr" ->
+			(
+				Reply.data.roomData.name == "lobby" ->
+					ws_send(WebSocket, text('{"target":"zone","type":"si#gs"}'))
+				; true -> true
+			)
+		;
+		Reply.data.type == "si#gb" ->
+			start(State0),
+			(
+				Reply.data.isYourTurn == true -> 
+					make_move(WebSocket, State0, NextState),
+					NewContext = context{ myId: 0, myColor: white, boardState: NextState, isGameEnd: CurrentContext.isGameEnd }
+				; true ->
+					NewContext = context{ myId: 1,myColor: black, boardState: State0, isGameEnd: CurrentContext.isGameEnd }
+			)
+		;
+		Reply.data.type == "si#pm" ->
+			(
+				Reply.data.playerId \= CurrentContext.myId ->
+					opponents_move(CurrentContext.boardState, Reply.data.move, ParsedState),
+					make_move(WebSocket, ParsedState, NextState),
+					NewContext = context{ myId: CurrentContext.myId, myColor: CurrentContext.myColor, boardState: NextState,isGameEnd: CurrentContext.isGameEnd }
+				; true -> true
+			)
+		;
+		Reply.data.type == "si#ge" ->
+			finish_game(Reply),
+			NewContext = context{ myId: CurrentContext.myId, myColor: CurrentContext.myColor, boardState: CurrentContext.boardState, isGameEnd: true }
+		;
+		true -> true
+	),
+	(
+		not(is_dict(NewContext)) ->
+			NewContext = CurrentContext
+		; true -> true
 	).
 
-is_your_turn_player_color(true, white).
-is_your_turn_player_color(false, black).
-
-receive_game_data(WebSocket, Reply) :-
-		ws_receive(WebSocket, Reply, [ format(json) ]),
-		writeln(Reply),
-		( Reply.data.type == "si#pm" ->
-			true
-			;
-			Reply.data.type == "rfx#ulr" ->
-			ws_receive(WebSocket, ResultReply, [ format(json) ]),
-			writeln(ResultReply),
-			finish_game(WebSocket, ResultReply)
-			;
-			Reply.data.type == "si#ge" ->
-			finish_game(WebSocket, Reply)
-		).
+open_websocket(URL, WebSocket) :- 
+	http_open_websocket(URL, WebSocket, []).
 
 send_move(WebSocket, Move) :- 
 	atom_concat('{"target":"zone","type":"si#pm","move":"', Move, TempMessage),
 	atom_concat(TempMessage, '"}', Message),
-	ws_send(WebSocket, text(Message)),
-	receive_game_data(WebSocket, _).
-	
-receive_move(WebSocket, Move) :- 
-	receive_game_data(WebSocket, Reply),
-	Move = Reply.data.move.
+	ws_send(WebSocket, text(Message)).
 
-play_game(WebSocket, black) :- 
-	start(State0),
-	opponents_move(WebSocket, State0).
-
-play_game(WebSocket, white) :- 
-	start(State0),
-	make_move(WebSocket, State0).
-
-make_move(WebSocket, State) :- 
+make_move(WebSocket, State, NextState) :- 
 	find_move(State,4,move(From, To, Remove),Value),
 	coordinates_notation(From, To, Remove, Move),
 	write("best move: "),
@@ -87,39 +72,38 @@ make_move(WebSocket, State) :-
 	writeln(State),
 	move(State, move(From, To, Remove), NextState),
 	writeln(NextState),
-	send_move(WebSocket, Move),
-	opponents_move(WebSocket, NextState).
+	send_move(WebSocket, Move).
 	
-opponents_move(WebSocket, State) :- 
-	receive_move(WebSocket, OpponentMove),
+opponents_move(State, OpponentMove, NextState) :- 
 	write("opponent move: "),
 	writeln(OpponentMove),
 	notation_coordinates(OpponentMove, From, To, Remove),
 	writeln(State),
 	move(State, move(From, To, Remove), NextState),
-	writeln(NextState),
-	make_move(WebSocket, NextState).
+	writeln(NextState).
 
-finish_game(WebSocket, Result) :-
+finish_game(Result) :-
 	( Result.data.didYouWin == true ->
 		writeln("Game result: win")
 		;
 		writeln("Game result: lose")
 	),
-	ws_receive(WebSocket, Reply1, [ format(json) ]),
-	writeln(Reply1),
-	ws_close(WebSocket, 1000, "game_finished"), !,
-	start_game().
+	!.
+
+game_loop(WebSocket, CurrentContext) :-
+	handle_server_message(WebSocket, CurrentContext, NewContext),
+	(
+		NewContext.isGameEnd == false ->
+			game_loop(WebSocket, NewContext)
+		; true -> true
+	),
+	!.
 
 start_game(URL) :- 
 	open_websocket(URL, WebSocket),
-	connect_to_server(WebSocket),
-	join_lobby(WebSocket),
-	init_game(WebSocket),
-	wait_for_opponent(WebSocket, PlayerColor),
-	write("playing as: "),
-	writeln(PlayerColor),
-	play_game(WebSocket, PlayerColor).
+	ws_send(WebSocket, text('{"target": "global", "type": "rfx#jz", "zoneName": "morabaraba"}')),
+	CurrentContext = context{ myId: -1, myColor: none, boardState: none, isGameEnd: false },
+	game_loop(WebSocket, CurrentContext).
 
 start_game() :-
 	start_game("ws://127.0.0.1:81/ws").
